@@ -1,0 +1,37 @@
+# Shared snippets for the jobs of the "examples" group. Include them with
+#
+#   include:
+#     - project: examples/ci-templates
+#       ref: main
+#       file: /rocky.yml
+#
+# and use them with  !reference [.rocky-dnf, before_script]  at the top of a job's before_script.
+
+# The runner's default image is Rocky Linux. Rocky's mirrorlist can hand out a mirror that serves a few kB/s, and
+# one such mirror stalled a first boot for twenty minutes. dl.rockylinux.org is fast from the lab, so use it directly,
+# and make dnf give up on a stalled connection instead of waiting forever.
+.rocky-dnf:
+  before_script:
+    - |
+      if [ -d /etc/yum.repos.d ] && ls /etc/yum.repos.d/rocky*.repo >/dev/null 2>&1; then
+        sed -i -E 's#^mirrorlist=.*[?&]repo=([A-Za-z]+)-\$releasever\$rltype$#baseurl=https://dl.rockylinux.org/pub/rocky/$releasever/\1/$basearch/os/#' /etc/yum.repos.d/rocky*.repo
+        printf 'timeout=30\nretries=5\nmax_parallel_downloads=5\n' >> /etc/dnf/dnf.conf
+      fi
+
+# Log in to the deploy server over SSH: the key (instance variable SSH_PRIVATE_KEY, a protected File variable) and
+# the host keys (SSH_KNOWN_HOSTS). Needs openssh-clients (and rsync for uploads) in the image.
+.ssh-setup:
+  before_script:
+    - install -m 700 -d ~/.ssh
+    - printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+    - cp "$SSH_PRIVATE_KEY" ~/.ssh/id_deploy && chmod 600 ~/.ssh/id_deploy
+    - |
+      cat > ~/.ssh/config <<SSHCONF
+      Host deploy
+        HostName ${DEPLOY_HOST}
+        Port ${DEPLOY_SSH_PORT}
+        User ${DEPLOY_USER}
+        IdentityFile ~/.ssh/id_deploy
+        IdentitiesOnly yes
+        StrictHostKeyChecking yes
+      SSHCONF
