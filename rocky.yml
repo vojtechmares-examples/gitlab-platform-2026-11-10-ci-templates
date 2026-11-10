@@ -18,8 +18,9 @@
         printf 'timeout=30\nretries=5\nmax_parallel_downloads=5\n' >> /etc/dnf/dnf.conf
       fi
 
-# Log in to the deploy server over SSH: the key (instance variable SSH_PRIVATE_KEY, a protected File variable) and
-# the host keys (SSH_KNOWN_HOSTS). Needs openssh-clients (and rsync for uploads) in the image.
+# Log in to the deploy server over SSH: the key (SSH_PRIVATE_KEY, a protected File variable) and the host keys
+# (SSH_KNOWN_HOSTS), as DEPLOY_USER or, when a job sets it, as SSH_USER (a .gitlab-ci.yml `variables:` entry ranks
+# below group variables, so a job cannot override DEPLOY_USER itself). Needs openssh-clients (and rsync for uploads) in the image.
 .ssh-setup:
   before_script:
     - install -m 700 -d ~/.ssh
@@ -30,7 +31,7 @@
       Host deploy
         HostName ${DEPLOY_HOST}
         Port ${DEPLOY_SSH_PORT}
-        User ${DEPLOY_USER}
+        User ${SSH_USER:-${DEPLOY_USER}}
         IdentityFile ~/.ssh/id_deploy
         IdentitiesOnly yes
         StrictHostKeyChecking yes
